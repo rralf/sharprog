@@ -147,46 +147,35 @@ ISR(TIMER1_COMPA_vect)
 	bit++;
 }
 
+static inline uint16_t encode_nibble(unsigned char nibble, unsigned char sb)
+{
+	uint16_t ret;
+
+	/*
+	 * Shift the nibble one to the left: Bit 0 is the startbit with value 0
+	 */
+	ret = nibble << 1;
+	/* Add sb stopbits with value 1 at the end of the nibble */
+	ret |= BIT_MASK(5 + sb - 1, 5);
+
+	return ret;
+}
+
 static void convert(struct sharp_byte *dst, unsigned char mode,
 		    unsigned char c)
 {
-	const struct mode_info *m;
-	unsigned char bit;
+	const struct mode_info *m = &mode_infos[mode];
+	unsigned char n0 = (c >> 0) & 0xf;
+	unsigned char n1 = (c >> 4) & 0xf;
 
-	m = &mode_infos[mode];
-	bit = 1 + 4 + m->first + 1 + 4 + m->second;
-
-	dst->data = 0;
-	dst->bits = bit;
+	dst->bits = 1 + 4 + m->first + 1 + 4 + m->second;
 
 	/*
 	 * We reverse the bitorder, so we don't need to reverse the bitorder of
 	 * the nibbles.
 	 */
-
-	/* 1. Write second nibble */
-
-	/* Stopbit */
-	dst->data |= BIT_MASK(bit - 1, bit - m->second);
-	bit -= m->second;
-
-	bit -= 4;
-	dst->data |= (c & 0xf) << bit;
-
-	/* Startbit */
-	bit -= 1;
-
-	/* 2. Write first nibble */
-
-	/* Stopbit */
-	dst->data |= BIT_MASK(bit - 1, bit - m->first);
-	bit -= m->first;
-
-	bit -= 4;
-	dst->data |= ((c >> 4) & 0xf) << bit;
-
-	/* Startbit */
-	bit -= 1;
+	dst->data = encode_nibble(n1, m->first);
+	dst->data |= encode_nibble(n0, m->second) << (1 + 4 + m->first);
 }
 
 #ifdef DEBUG
