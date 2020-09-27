@@ -190,7 +190,9 @@ static void dump_sharp_byte(const struct sharp_byte *sharp_byte)
 static void dump_regular_byte(unsigned char mode, unsigned char byte,
 		      const struct sharp_byte *sharp_byte)
 {
-	pr_dbg("B: %02x, M: %u -- ", byte, mode);
+	static unsigned int ctr = 0;
+
+	pr_dbg("%04x: B: %02x, M: %u -- ", ctr++, byte, mode);
 	dump_sharp_byte(sharp_byte);
 	dbg_("");
 }
