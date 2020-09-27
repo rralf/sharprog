@@ -22,6 +22,9 @@
 #define pr_cond_str(__cond, __then, __else) \
 	!!(__cond) ? PSTR(__then) : PSTR(__else)
 
+
+#ifdef DEBUG
+
 const char *pr_bool(bool b);
 
 #ifndef dbg_fmt
@@ -34,3 +37,8 @@ void __attribute__((format(printf, 1, 2))) debug_printk_P(const char *fmt, ...);
 
 #define dbg(str) debug_puts_P(PSTR(dbg_fmt(str)))
 #define pr_dbg(fmt, ...) debug_printk_P(PSTR(dbg_fmt(fmt)), ##__VA_ARGS__)
+
+#else /* DEBUG */
+#define dbg(...)
+#define pr_dbg(...)
+#endif
