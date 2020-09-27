@@ -26,7 +26,7 @@ QEMU_MACHINE = mega2560
 
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
-OBJS = main.o uart.o debug.o
+OBJS = main.o uart.o debug.o sharp.o
 OBJS_QEMU = $(OBJS:.o=_qemu.o)
 
 CC = avr-gcc

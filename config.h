@@ -13,8 +13,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <avr/io.h>
+
 #define LED_DDR		DDRB
 #define LED_PORT	PORTB
 #define LED_BIT		PB5
+
+#define SHARP_XIN_DDR	DDRB
+#define SHARP_XIN_PORT	PORTB
+#define SHARP_XIN_BIT	PB0
 
 #endif
