@@ -16,6 +16,7 @@
 
 #include "debug.h"
 #include "uart.h"
+#include "led.h"
 
 #define TIMER1_TARGET_FREQUENCY_HZ	8000
 #define TIMER1_OCR1A			(F_OSC / TIMER1_TARGET_FREQUENCY_HZ)
@@ -89,25 +90,6 @@ static volatile struct sharp_byte sharp_buf[2] = {
 	[0] = { .bits = -1, },
 	[1] = { .bits = -1, },
 };
-
-static inline void led(bool on)
-{
-	if (on)
-		PORTB |= (1 << PB5);
-	else
-		PORTB &= ~(1 << PB5);
-}
-
-static inline void led_toggle(void)
-{
-	PORTB ^= (1 << PB5);
-}
-
-static inline void led_init(void)
-{
-	DDRB |= (1 << PB5);
-	led(false);
-}
 
 static inline void timer_start(void)
 {
