@@ -75,7 +75,11 @@ const uint16_t pattern[] = {
 };
 static uint16_t current; /* currently active pattern */
 
-static uint16_t cksum; /* The checksum we'll carry around */
+/* Information on the checksum */
+static struct {
+	unsigned int ctr;
+	uint16_t sum;
+} check;
 
 /*
  * The timer will consume sharp bytes. It consumes entry 0, produces square
@@ -229,12 +233,14 @@ static void update_cksum(unsigned char byte)
 {
 	uint16_t sum ;
 
-	sum = cksum + ((byte & 0xF0) >> 4) ;
+	sum = check.sum + ((byte & 0xF0) >> 4) ;
 	if (sum > 0xFF) {
 		++sum;
 		sum &= 0xFF ;
 	}
-	cksum = (sum + (byte & 0x0F)) & 0xFF ;
+	check.sum = (sum + (byte & 0x0F)) & 0xFF ;
+
+	check.ctr++;
 }
 
 static void enqueue_byte(unsigned char mode, unsigned char byte, bool cksum)
@@ -309,9 +315,9 @@ int main(void)
 	enqueue_byte(8, 0xff, false);
 
 	/* Cksum */
-	enqueue_byte(8, cksum, false);
+	enqueue_byte(8, check.sum, false);
 #ifdef DEBUG
-	pr_dbg_("Cksum: %x", cksum);
+	pr_dbg_("Cksum: %x", check.sum);
 #endif
 
 	// FIXME add shutdown routines!
