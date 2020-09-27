@@ -17,12 +17,10 @@
 #include "debug.h"
 #include "uart.h"
 #include "led.h"
+#include "utils.h"
 
 #define TIMER1_TARGET_FREQUENCY_HZ	8000
 #define TIMER1_OCR1A			(F_OSC / TIMER1_TARGET_FREQUENCY_HZ)
-
-#define BIT_MASK(last, first) \
-        ((0xffffffff>> (32 - ((last) + 1 - (first)))) << (first))
 
 static const unsigned char bas_test_img[] PROGMEM = {
 	0x00, 0x0a, 0x11, 0xde, 0x22, 0x53, 0x43, 0x48, 0x45, 0x49, 0x53, 0x32, 0x20, 0x47, 0x45, 0x48, 0x54, 0x21, 0x22, 0x0d,
