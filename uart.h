@@ -10,8 +10,6 @@
  * the COPYING file in the top-level directory.
  */
 
-void uart_set_recv_handler(void (*handler)(unsigned char c));
-
 void uart_init(void);
 
 void uart_putc(const char c);
