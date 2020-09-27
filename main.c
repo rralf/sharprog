@@ -253,6 +253,13 @@ static void enqueue_byte(unsigned char mode, unsigned char byte, bool cksum)
 	convert(&converted, mode, byte);
 	dump_regular_byte(mode, byte, &converted);
 	enqueue_converted(&converted);
+
+	if (cksum && check.ctr == 120) {
+		enqueue_byte(mode, check.sum, false);
+
+		check.ctr = 0;
+		check.sum = 0;
+	}
 }
 
 static void enqueue_sync(unsigned short length)
@@ -304,6 +311,10 @@ int main(void)
 
 	/* Name, Cksum: Yes */
 	enqueue_data(5, name, sizeof(name), true);
+
+	check.sum = 0;
+	check.ctr = 0;
+
 	/* If we would have old cksum, we would count this byte and immediately write the checksum */
 	enqueue_byte(5, 0x5f, false);
 	enqueue_byte(5, 0x14, false);
