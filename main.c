@@ -17,6 +17,7 @@
 #include "uart.h"
 #include "led.h"
 #include "utils.h"
+#include "rs232.h"
 #include "sharp.h"
 
 static const unsigned char bas_test_img[] PROGMEM = {
@@ -37,6 +38,12 @@ int main(void)
 	uart_init();
 	dbg_("Hello, this is sharprog!");
 	sei();
+
+#if 1
+	rs232_init();
+	rs232_loop();
+	for(;;);
+#endif
 
 	/* Synchronisation. Length of one sync cycle: 64ms */
 	sharp_start_transmission(5);

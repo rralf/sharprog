@@ -26,7 +26,7 @@ QEMU_MACHINE = mega2560
 
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
-OBJS = main.o uart.o sharp.o
+OBJS = main.o uart.o sharp.o rs232.o
 ifdef DEBUG
 OBJS += debug.o
 endif
