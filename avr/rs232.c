@@ -124,7 +124,7 @@ out:
 	rs232_send_fail();
 }
 
-void rs232_loop(void)
+void __attribute__((noreturn)) rs232_loop(void)
 {
 	int c;
 

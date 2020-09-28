@@ -11,4 +11,4 @@
  */
 
 void rs232_init(void);
-void rs232_loop(void);
+void __attribute__((noreturn)) rs232_loop(void);
