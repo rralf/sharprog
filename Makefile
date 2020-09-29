@@ -26,7 +26,10 @@ QEMU_MACHINE = mega2560
 
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
-OBJS = main.o uart.o debug.o sharp.o
+OBJS = main.o uart.o sharp.o
+ifdef DEBUG
+OBJS += debug.o
+endif
 OBJS_QEMU = $(OBJS:.o=_qemu.o)
 
 CC = avr-gcc
@@ -38,9 +41,11 @@ QEMU_FLAGS = --machine $(QEMU_MACHINE) -serial stdio
 
 CFLAGS := -g -O2
 CFLAGS += -fdata-sections -ffunction-sections
-CFLAGS += -Wall -Wextra -Wstrict-prototypes
+CFLAGS += -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations
 CFLAGS += -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL
+ifdef DEBUG
 CFLAGS += -DDEBUG
+endif
 
 LDFLAGS := -Wl,--gc-sections
 

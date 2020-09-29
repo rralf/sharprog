@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "utils.h"
 #include "uart.h"
+#include "sharp.h"
 
 #define TIMER1_TARGET_FREQUENCY_HZ	8000
 #define TIMER1_OCR1A			(F_OSC / TIMER1_TARGET_FREQUENCY_HZ)
