@@ -12,3 +12,5 @@
 
 #define BIT_MASK(last, first) \
         ((0xffffffff>> (32 - ((last) + 1 - (first)))) << (first))
+
+#define ARRAY_SIZE(array)  (sizeof(array) / sizeof((array)[0]))

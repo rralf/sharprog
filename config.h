@@ -23,4 +23,7 @@
 #define SHARP_XIN_PORT	PORTB
 #define SHARP_XIN_BIT	PB0
 
+/* must be a power of two! */
+#define SHARP_RING_BUFFER_SIZE	16
+
 #endif

@@ -45,14 +45,12 @@ static struct {
 	uint16_t sum;
 } check;
 
-/*
- * The timer will consume sharp bytes. It consumes entry 0, produces square
- * output, and moves entry 1 to entry 0 once it finished.
- */
-static volatile struct sharp_byte sharp_buf[2] = {
-	[0] = { .bits = -1, },
-	[1] = { .bits = -1, },
-};
+static volatile struct {
+	struct sharp_byte buf[SHARP_RING_BUFFER_SIZE];
+	unsigned char head;
+	unsigned char tail;
+	bool stop;
+} rbuf;
 
 static const struct sharp_byte sharp_sync = {
 	.data = -1,
@@ -89,7 +87,6 @@ const uint16_t pattern[] = {
 	0x0000, /* TBD: currently unused, while actually needed */
 	0x0001,
 };
-static uint16_t current; /* currently active pattern */
 
 #ifdef DEBUG
 static void dump_sharp_byte(const struct sharp_byte *sharp_byte)
@@ -131,28 +128,60 @@ static inline void xin_low(void)
 	SHARP_XIN_PORT &= ~(1 << SHARP_XIN_BIT);
 }
 
+static inline unsigned char rbuf_next_pos(unsigned char pos)
+{
+	return (pos + 1) % ARRAY_SIZE(rbuf.buf);
+}
+
+static int rbuf_enq(const struct sharp_byte *byte)
+{
+	if (rbuf.stop)
+		return -1;
+
+	while (rbuf.tail == rbuf.head);
+
+	rbuf.buf[rbuf.tail] = *byte;
+	rbuf.tail = rbuf_next_pos(rbuf.tail);
+	return 0;
+}
+
+static int rbuf_deq(struct sharp_byte *dst)
+{
+	unsigned char new_head = rbuf_next_pos(rbuf.head);
+
+	if (new_head == rbuf.tail) {
+		dbg_("Underrun");
+		return -1;
+	}
+	*dst = rbuf.buf[new_head];
+	rbuf.head = new_head;
+
+	return 0;
+}
+
 /* COMPA will be fired every 1/8000 second */
 ISR(TIMER1_COMPA_vect)
 {
+	static struct sharp_byte scurrent;
+	static uint16_t current; /* currently active pattern */
 	static unsigned char bit = 0;
 	static unsigned char byte_bit = 0;
-
-	/* FIXME, add sane end condition */
-	if (sharp_buf[0].bits == -1) {
-		timer_stop();
-		cli();
-	}
+	int err;
 
 	if (bit >= 16) {
 		bit = 0;
 		byte_bit++;
-		if (byte_bit >= sharp_buf[0].bits) {
+		if (byte_bit >= scurrent.bits) {
 			byte_bit = 0;
-			sharp_buf[0] = sharp_buf[1];
-			sharp_buf[1].bits = -1;
+			err = rbuf_deq(&scurrent);
+			if (err) {
+				rbuf.stop = true;
+				timer_stop();
+				return;
+			}
 		}
 
-		current = pattern[!!(sharp_buf[0].data & (1UL << byte_bit))];
+		current = pattern[!!(scurrent.data & (1UL << byte_bit))];
 	}
 
 	if (current & (1 << bit))
@@ -213,70 +242,86 @@ static void convert(struct sharp_byte *dst, unsigned char mode,
 	dst->data |= encode_nibble(n0, m->second) << (1 + 4 + m->first);
 }
 
-static void enqueue_converted(const struct sharp_byte *byte)
+void sharp_stop_transmission(void)
 {
-	/*
-	 * If this case is true, we start a new conversation. Enqueue the first
-	 * sharp_byte, and enable IRQs.
-	 */
-	if (sharp_buf[0].bits == -1) {
-		sharp_buf[0] = *byte;
-		timer_start();
-		sei();
-		return;
-	}
-
-	while (sharp_buf[1].bits != -1);
-	sharp_buf[1] = *byte;
+	while (!rbuf.stop);
 }
 
-void enqueue_sync(unsigned short length)
+static int enqueue_sync(unsigned short i)
 {
-	unsigned short i;
-
-	for (i = 0; i < length; i++) {
+	while (i--) {
 		dump_sync();
-		enqueue_converted(&sharp_sync);
+		if (rbuf_enq(&sharp_sync))
+			return -1;
 	}
+	return 0;
 }
 
-void enqueue_byte(unsigned char mode, unsigned char byte, bool checksum)
+int sharp_start_transmission(unsigned short sync)
+{
+	int err;
+
+	rbuf.stop = false;
+	rbuf.head = ARRAY_SIZE(rbuf.buf) - 1;
+	rbuf.tail = 0;
+
+	err = enqueue_sync(4);
+	if (err)
+		return -1;
+	timer_start();
+	return enqueue_sync(sync);
+}
+
+int enqueue_byte(unsigned char mode, unsigned char byte, bool checksum)
 {
 	struct sharp_byte converted;
+	int err = 0;
 
 	if (checksum)
 		update_checksum(byte);
 
 	convert(&converted, mode, byte);
 	dump_regular_byte(mode, byte, &converted);
-	enqueue_converted(&converted);
+	if (rbuf_enq(&converted))
+		return -1;
 
 	if (checksum && check.ctr == 120) {
-		enqueue_byte(mode, check.sum, false);
-
+		err = enqueue_byte(mode, check.sum, false);
 		check.ctr = 0;
 		check.sum = 0;
 	}
+	return err;
 }
 
-void enqueue_data(unsigned char mode, const unsigned char *data,
-		  unsigned int length, bool checksum)
+int enqueue_data(unsigned char mode, const unsigned char *data,
+		 unsigned int length, bool checksum)
 {
 	const unsigned char *r = data;
 	unsigned char c;
+	int err;
 
 	for (r = data; r < data + length; r++) {
 		c = pgm_read_byte(r);
-		enqueue_byte(mode, c, checksum);
+		err = enqueue_byte(mode, c, checksum);
+		if (err)
+			return -1;
 	}
+
+	return 0;
 }
 
-void sharp_enqueue_checksum(void)
+int sharp_enqueue_checksum(void)
 {
-	enqueue_byte(8, check.sum, false);
+	int err;
+
+	err = enqueue_byte(8, check.sum, false);
+	if (err)
+		return -1;
+
 #ifdef DEBUG
 	pr_dbg_("Enqueue checksum: %x", check.sum);
 #endif
+	return 0;
 }
 
 void sharp_init(void)

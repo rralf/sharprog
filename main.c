@@ -39,7 +39,7 @@ int main(void)
 	sei();
 
 	/* Synchronisation. Length of one sync cycle: 64ms */
-	enqueue_sync(20);
+	sharp_start_transmission(5);
 
 	/* Typ: NEW_BAS, Cksum: No */
 	enqueue_byte(5, 0x70, false);
@@ -64,8 +64,9 @@ int main(void)
 
 	/* Cksum */
 	sharp_enqueue_checksum();
+	sharp_stop_transmission();
 
-	// FIXME add shutdown routines!
+	dbg_("Finished.");
 
 	for (;;);
 	return 0;

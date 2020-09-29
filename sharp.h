@@ -12,10 +12,12 @@
 
 void sharp_init(void);
 
-void sharp_reset_checksum(void);
-void sharp_enqueue_checksum(void);
+int sharp_start_transmission(unsigned short sync);
+void sharp_stop_transmission(void);
 
-void enqueue_data(unsigned char mode, const unsigned char *data,
-		  unsigned int length, bool checksum);
-void enqueue_byte(unsigned char mode, unsigned char byte, bool checksum);
-void enqueue_sync(unsigned short length);
+void sharp_reset_checksum(void);
+int sharp_enqueue_checksum(void);
+
+int enqueue_data(unsigned char mode, const unsigned char *data,
+		 unsigned int length, bool checksum);
+int enqueue_byte(unsigned char mode, unsigned char byte, bool checksum);
