@@ -13,7 +13,7 @@ OBJS = main.o
 
 CC = gcc
 CFLAGS := -O0 -g -ggdb
-CFLAGS += -Wall -Wextra
+CFLAGS += -Wall -Wextra -I../include
 
 all: $(TARGET)
 

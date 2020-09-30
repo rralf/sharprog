@@ -29,9 +29,9 @@ AVR_PREFIX = avr-
 
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
-AVR_OBJS = main.o uart.o sharp.o rs232.o
+AVR_OBJS := avr/main.o avr/uart.o avr/sharp.o avr/rs232.o
 ifdef DEBUG
-AVR_OBJS += debug.o
+AVR_OBJS += avr/debug.o
 endif
 QEMU_AVR_OBJS = $(AVR_OBJS:.o=_qemu.o)
 
@@ -45,6 +45,7 @@ QEMU_FLAGS = --machine $(QEMU_MACHINE) -serial stdio
 # Global {C,LD}FLAGS, for AVR and Host
 CFLAGS := -fdata-sections -ffunction-sections
 CFLAGS += -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations
+CFLAGS += -Iinclude/
 LDFLAGS := -Wl,--gc-sections
 
 # Global debug/release specific CFLAGS
@@ -55,14 +56,16 @@ CFLAGS += -O2
 endif
 
 AVR_CFLAGS := $(CFLAGS) -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL
-TARGET_CFLAGS := $(AVR_CFLAGS) -mmcu=$(MCU)
+TARGET_CFLAGS := $(AVR_CFLAGS) -mmcu=$(TARGET_MCU)
 QEMU_CFLAGS := $(AVR_CFLAGS) -mmcu=$(QEMU_MCU)
 
-TARGET_QEMU = $(TARGET)_qemu
+TARGET_ELF = avr/$(TARGET).elf
+TARGET_HEX = avr/$(TARGET).hex
+QEMU_ELF = avr/$(TARGET)_qemu.elf
 
-all: $(TARGET).hex
+all: $(TARGET_HEX)
 
-$(TARGET).elf: $(AVR_OBJS)
+$(TARGET_ELF): $(AVR_OBJS)
 	$(AVR_CC) $(TARGET_CFLAGS) $(LDFLAGS) -o $@ $^
 
 %.hex: %.elf
@@ -75,13 +78,13 @@ $(TARGET).elf: $(AVR_OBJS)
 %_qemu.o: %.c
 	$(AVR_CC) -c $(QEMU_CFLAGS) -o $@ $^
 
-$(TARGET_QEMU).elf: $(QEMU_AVR_OBJS)
+$(QEMU_ELF): $(QEMU_AVR_OBJS)
 	$(AVR_CC) $(QEMU_CFLAGS) $(LDFLAGS) -o $@ $^
 
-qemu: $(TARGET)_qemu.elf
+qemu: $(QEMU_ELF)
 	$(QEMU) $(QEMU_FLAGS) --bios $^
 
-program: $(TARGET).hex
+program: $(TARGET_HEX)
 	$(AVRDUDE_OPTS) -U flash:w:$^
 
 reset:
@@ -95,5 +98,5 @@ rfuse:
 	$(AVRDUDE_OPTS) -U lfuse:r:-:b -U hfuse:r:-:b -U efuse:r:-:b
 
 clean:
-	rm -f $(AVR_OBJS) $(QEMU_AVR_OBJS)
-	rm -f $(TARGET).elf $(TARGET_QEMU).elf $(TARGET).hex
+	rm -f $(AVR_OBJS) $(TARGET_ELF) $(TARGET_HEX)
+	rm -f $(QEMU_AVR_OBJS) $(QEMU_ELF)

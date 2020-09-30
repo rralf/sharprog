@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "../protocol.h"
+#include <protocol.h>
 
 #define DEVICE	"/dev/ttyUSB0"
 #define BAUD	B115200

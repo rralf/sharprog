@@ -15,9 +15,10 @@
 #include <avr/interrupt.h>
 #include <string.h>
 
+#include <protocol.h>
+
 #include "debug.h"
 #include "uart.h"
-#include "protocol.h"
 #include "rs232.h"
 #include "sharp.h"
 
