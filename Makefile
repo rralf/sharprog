@@ -9,6 +9,7 @@
 # the COPYING file in the top-level directory.
 
 TARGET = sharprog
+HOST_TARGET = sharprog/sharprog
 
 # MCU settings
 TARGET_MCU = atmega328p
@@ -35,6 +36,8 @@ ifdef DEBUG
 AVR_OBJS += avr/debug.o
 endif
 QEMU_AVR_OBJS = $(AVR_OBJS:.o=_qemu.o)
+
+HOST_OBJS := sharprog/main.o
 
 AVR_CC = $(AVR_PREFIX)$(CC)
 AVR_OBJCOPY = $(AVR_PREFIX)objcopy
@@ -64,7 +67,10 @@ TARGET_ELF = avr/$(TARGET).elf
 TARGET_HEX = avr/$(TARGET).hex
 QEMU_ELF = avr/$(TARGET)_qemu.elf
 
-all: $(TARGET_HEX)
+all: $(HOST_TARGET) $(TARGET_HEX)
+
+$(HOST_TARGET): $(HOST_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 $(TARGET_ELF): $(AVR_OBJS)
 	$(AVR_CC) $(TARGET_CFLAGS) $(LDFLAGS) -o $@ $^
@@ -73,10 +79,10 @@ $(TARGET_ELF): $(AVR_OBJS)
 	$(AVR_SIZE) $^
 	$(AVR_OBJCOPY) -O ihex -R .eeprom $^ $@
 
-%.o: %.c
+avr/%.o: avr/%.c
 	$(AVR_CC) -c $(TARGET_CFLAGS) -o $@ $^
 
-%_qemu.o: %.c
+avr/%_qemu.o: avr/%.c
 	$(AVR_CC) -c $(QEMU_CFLAGS) -o $@ $^
 
 $(QEMU_ELF): $(QEMU_AVR_OBJS)
@@ -99,5 +105,6 @@ rfuse:
 	$(AVRDUDE_OPTS) -U lfuse:r:-:b -U hfuse:r:-:b -U efuse:r:-:b
 
 clean:
+	rm -f $(HOST_OBJS) $(HOST_TARGET)
 	rm -f $(AVR_OBJS) $(TARGET_ELF) $(TARGET_HEX)
 	rm -f $(QEMU_AVR_OBJS) $(QEMU_ELF)
