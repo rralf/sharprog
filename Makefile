@@ -26,6 +26,7 @@ QEMU_MACHINE = mega2560
 
 # Compiler settings
 AVR_PREFIX = avr-
+CC = gcc
 
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
@@ -35,7 +36,7 @@ AVR_OBJS += avr/debug.o
 endif
 QEMU_AVR_OBJS = $(AVR_OBJS:.o=_qemu.o)
 
-AVR_CC = $(AVR_PREFIX)gcc
+AVR_CC = $(AVR_PREFIX)$(CC)
 AVR_OBJCOPY = $(AVR_PREFIX)objcopy
 AVR_SIZE = $(AVR_PREFIX)size
 AVRDUDE = avrdude
