@@ -21,7 +21,7 @@ PROGRAMMER=usbasp
 PORT=usb
 
 # Qemu settings
-MCU_QEMU = atmega2560
+QEMU_MCU = atmega2560
 QEMU_MACHINE = mega2560
 
 # Compiler settings
@@ -56,7 +56,7 @@ endif
 
 AVR_CFLAGS := $(CFLAGS) -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL
 TARGET_CFLAGS := $(AVR_CFLAGS) -mmcu=$(MCU)
-QEMU_CFLAGS := $(AVR_CFLAGS) -mmcu=$(MCU_QEMU)
+QEMU_CFLAGS := $(AVR_CFLAGS) -mmcu=$(QEMU_MCU)
 
 TARGET_QEMU = $(TARGET)_qemu
 
