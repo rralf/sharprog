@@ -24,6 +24,9 @@ PORT=usb
 MCU_QEMU = atmega2560
 QEMU_MACHINE = mega2560
 
+# Compiler settings
+AVR_PREFIX = avr-
+
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
 OBJS = main.o uart.o sharp.o rs232.o
@@ -32,44 +35,48 @@ OBJS += debug.o
 endif
 OBJS_QEMU = $(OBJS:.o=_qemu.o)
 
-CC = avr-gcc
-OBJCOPY = avr-objcopy
-SIZE = avr-size
+AVR_CC = $(AVR_PREFIX)gcc
+AVR_OBJCOPY = $(AVR_PREFIX)objcopy
+AVR_SIZE = $(AVR_PREFIX)size
 AVRDUDE = avrdude
 QEMU = qemu-system-avr
 QEMU_FLAGS = --machine $(QEMU_MACHINE) -serial stdio
 
-CFLAGS := -g -O2
-CFLAGS += -fdata-sections -ffunction-sections
+# Global {C,LD}FLAGS, for AVR and Host
+CFLAGS := -fdata-sections -ffunction-sections
 CFLAGS += -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations
-CFLAGS += -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL
-ifdef DEBUG
-CFLAGS += -DDEBUG
-endif
-
 LDFLAGS := -Wl,--gc-sections
 
-CFLAGS_TARGET := $(CFLAGS) -mmcu=$(MCU) -DMCU=$(MCU)
-CFLAGS_QEMU := $(CFLAGS) -mmcu=$(MCU_QEMU) -DMCU=$(MCU_QEMU)
+# Global debug/release specific CFLAGS
+ifdef DEBUG
+CFLAGS += -DDEBUG -g -O0
+else
+CFLAGS += -O2
+endif
+
+AVR_CFLAGS := $(CFLAGS) -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL
+TARGET_CFLAGS := $(AVR_CFLAGS) -mmcu=$(MCU) -DMCU=$(MCU)
+QEMU_CFLAGS := $(AVR_CFLAGS) -mmcu=$(MCU_QEMU) -DMCU=$(MCU_QEMU)
+
 TARGET_QEMU = $(TARGET)_qemu
 
 all: $(TARGET).hex
 
 $(TARGET).elf: $(OBJS)
-	$(CC) $(CFLAGS_TARGET) $(LDFLAGS) -o $@ $^
+	$(AVR_CC) $(TARGET_CFLAGS) $(LDFLAGS) -o $@ $^
 
 %.hex: %.elf
-	$(SIZE) $^
-	$(OBJCOPY) -O ihex -R .eeprom $^ $@
+	$(AVR_SIZE) $^
+	$(AVR_OBJCOPY) -O ihex -R .eeprom $^ $@
 
 %.o: %.c
-	$(CC) -c $(CFLAGS_TARGET) -o $@ $^
+	$(AVR_CC) -c $(TARGET_CFLAGS) -o $@ $^
 
 %_qemu.o: %.c
-	$(CC) -c $(CFLAGS_QEMU) -o $@ $^
+	$(AVR_CC) -c $(QEMU_CFLAGS) -o $@ $^
 
 $(TARGET_QEMU).elf: $(OBJS_QEMU)
-	$(CC) $(CFLAGS_QEMU) -o $@ $^
+	$(AVR_CC) $(QEMU_CFLAGS) $(LDFLAGS) -o $@ $^
 
 qemu: $(TARGET)_qemu.elf
 	$(QEMU) $(QEMU_FLAGS) --bios $^
