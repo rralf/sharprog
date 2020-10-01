@@ -11,12 +11,12 @@
 TARGET = sharprog
 
 # MCU settings
-MCU ?= atmega328p
-F_OSC ?= 16000000
+TARGET_MCU = atmega328p
+F_OSC = 16000000
 UART_BAUD ?= 115200
 
 # avrdude settings
-AVRDUDE_MCU ?= m328p
+AVRDUDE_MCU = m328p
 PROGRAMMER=usbasp
 PORT=usb
 
