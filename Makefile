@@ -29,11 +29,11 @@ AVR_PREFIX = avr-
 
 AVRDUDE_OPTS = $(AVRDUDE) -p $(AVRDUDE_MCU) -c $(PROGRAMMER) -P $(PORT)
 
-OBJS = main.o uart.o sharp.o rs232.o
+AVR_OBJS = main.o uart.o sharp.o rs232.o
 ifdef DEBUG
-OBJS += debug.o
+AVR_OBJS += debug.o
 endif
-OBJS_QEMU = $(OBJS:.o=_qemu.o)
+QEMU_AVR_OBJS = $(AVR_OBJS:.o=_qemu.o)
 
 AVR_CC = $(AVR_PREFIX)gcc
 AVR_OBJCOPY = $(AVR_PREFIX)objcopy
@@ -62,7 +62,7 @@ TARGET_QEMU = $(TARGET)_qemu
 
 all: $(TARGET).hex
 
-$(TARGET).elf: $(OBJS)
+$(TARGET).elf: $(AVR_OBJS)
 	$(AVR_CC) $(TARGET_CFLAGS) $(LDFLAGS) -o $@ $^
 
 %.hex: %.elf
@@ -75,7 +75,7 @@ $(TARGET).elf: $(OBJS)
 %_qemu.o: %.c
 	$(AVR_CC) -c $(QEMU_CFLAGS) -o $@ $^
 
-$(TARGET_QEMU).elf: $(OBJS_QEMU)
+$(TARGET_QEMU).elf: $(QEMU_AVR_OBJS)
 	$(AVR_CC) $(QEMU_CFLAGS) $(LDFLAGS) -o $@ $^
 
 qemu: $(TARGET)_qemu.elf
@@ -95,5 +95,5 @@ rfuse:
 	$(AVRDUDE_OPTS) -U lfuse:r:-:b -U hfuse:r:-:b -U efuse:r:-:b
 
 clean:
-	rm -f $(OBJS) $(OBJS_QEMU)
+	rm -f $(AVR_OBJS) $(QEMU_AVR_OBJS)
 	rm -f $(TARGET).elf $(TARGET_QEMU).elf $(TARGET).hex
