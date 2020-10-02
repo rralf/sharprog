@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <protocol.h>
 
@@ -27,25 +28,51 @@
 #define SHARP_TIMEOUT_LONG	(1000 * 10)
 #define SHARP_TIMEOUT_SHORT	1000
 
-static const unsigned char test_tap[] = {
-  0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x5f, 0x14, 0x00, 0x01,
-  0x08, 0xde, 0x22, 0x53, 0x45, 0x50, 0x50, 0x22, 0x0d, 0x00, 0x02, 0x08,
-  0xde, 0x22, 0x53, 0x45, 0x50, 0x50, 0x22, 0x0d, 0x00, 0x03, 0x08, 0xde,
-  0x22, 0x53, 0x45, 0x50, 0x50, 0x22, 0x0d, 0x00, 0x04, 0x08, 0xde, 0x22,
-  0x53, 0x45, 0x50, 0x50, 0x22, 0x0d, 0x00, 0x05, 0x08, 0xde, 0x22, 0x53,
-  0x45, 0x50, 0x50, 0x22, 0x0d, 0x00, 0x06, 0x08, 0xde, 0x22, 0x53, 0x45,
-  0x50, 0x50, 0x22, 0x0d, 0x00, 0x07, 0x08, 0xde, 0x22, 0x53, 0x45, 0x50,
-  0x50, 0x22, 0x0d, 0x00, 0x08, 0x08, 0xde, 0x22, 0x53, 0x45, 0x50, 0x50,
-  0x22, 0x0d, 0x00, 0x09, 0x08, 0xde, 0x22, 0x53, 0x45, 0x50, 0x50, 0x22,
-  0x0d, 0x00, 0x0a, 0x08, 0xde, 0x22, 0x53, 0x45, 0x50, 0x50, 0x22, 0x0d,
-  0xff, 0xff, 0x94
-};
-
 static void __attribute__((noreturn)) usage(const char *prog, int err)
 {
-	printf("Usage: %s [-d device]\n", prog);
+	printf("Usage: %s [-d device] -t filename_tap\n", prog);
 	printf("Default device: " DEFAULT_DEVICE "\n");
 	exit(err);
+}
+
+static int read_file(const char *filename, unsigned char **dst, size_t *size)
+{
+	int err, fd;
+	struct stat stat;
+
+	*size = 0;
+	fd = open(filename, O_RDONLY);
+	if (fd < 0) {
+		perror("open file");
+		return -errno;
+	}
+
+	err = fstat(fd, &stat);
+	if (err == -1) {
+		perror("fstat");
+		err = -errno;
+		goto close_out;
+	}
+	printf("Payload size: %lu\n", stat.st_size);
+	*size = stat.st_size;
+
+	*dst = malloc(stat.st_size);
+	if (!*dst) {
+		err = -ENOMEM;
+		goto close_out;
+	}
+
+	err = read(fd, *dst, stat.st_size);
+	if (err != stat.st_size) {
+		err = -EINVAL;
+		free(*dst);
+		goto close_out;
+	}
+
+	err = 0;
+close_out:
+	close(fd);
+	return err;
 }
 
 static int sharp_read_byte(int fd, unsigned int timeout)
@@ -217,21 +244,18 @@ static int sharp_send_tap(int fd, const unsigned char *tap, size_t length)
 {
 	int err;
 
-	printf("send cmd\n");
 	err = sharp_send_byte_response(fd, RS232_CMD_TAP, RS232_SUCCESS);
 	if (err)
 		goto out;
 
-	printf("send length\n");
 	err = sharp_send_short(fd, length);
 	if (err)
 		goto out;
 
-	printf("send array\n");
 	err = sharp_send_array(fd, tap, length);
 	if (err)
 		goto out;
-	printf("sent. wait to finish.\n");
+	printf("TAP sent. wait to finish.\n");
 
 	err = sharp_read_byte(fd, SHARP_TIMEOUT_LONG);
 	if (err < 0) {
@@ -245,13 +269,19 @@ out:
 
 int main(int argc, char **argv)
 {
-	const char *devicename = DEFAULT_DEVICE;
-	int err, opt, fd;
+	const char *devicename = DEFAULT_DEVICE, *f_tap = NULL;
+	unsigned char *content = NULL;
+	int err, opt, fd_sharp;
+	size_t size;
 
-	while ((opt = getopt(argc, argv, "d:h")) != -1) {
+	while ((opt = getopt(argc, argv, "d:ht:")) != -1) {
 		switch (opt) {
 		case 'd':
 			devicename = optarg;
+			break;
+
+		case 't':
+			f_tap = optarg;
 			break;
 
 		case 'h':
@@ -264,34 +294,41 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!f_tap)
+		usage(argv[0], -1);
+
 	printf("Using device at %s\n", devicename);
-	fd = sharp_open(devicename);
-	if (fd < 0) {
-		err = fd;
+	fd_sharp = sharp_open(devicename);
+	if (fd_sharp < 0) {
+		err = fd_sharp;
 		goto out;
 	}
 
 	printf("Ping programmer...\n");
-	err = sharp_ping(fd);
+	err = sharp_ping(fd_sharp);
 	if (err) {
 		errno = -err;
 		perror("sharp_ping");
-		goto close_fd;
+		goto close_sharp;
 	}
-	printf("Success!\n");
+	printf("  -> Found programmer\n");
 
-	printf("size: %lu\n", sizeof(test_tap));
-	err = sharp_send_tap(fd, test_tap, sizeof(test_tap));
+	err = read_file(f_tap, &content, &size);
+	if (err)
+		goto close_sharp;
+
+	err = sharp_send_tap(fd_sharp, content, size);
 	if (err) {
 		errno = -err;
 		perror("sharp_send_tap");
-		goto close_fd;
+		goto close_sharp;
 	}
-	printf("Success!\n");
 
 	err = 0;
-close_fd:
-	close(fd);
+close_sharp:
+	close(fd_sharp);
 out:
+	if (content)
+		free(content);
 	return err;
 }
