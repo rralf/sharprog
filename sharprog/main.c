@@ -21,8 +21,8 @@
 
 #include <protocol.h>
 
-#define DEVICE	"/dev/ttyUSB0"
-#define BAUD	B115200
+#define DEFAULT_DEVICE	"/dev/ttyUSB0"
+#define BAUD		B115200
 
 #define SHARP_TIMEOUT_LONG	(1000 * 10)
 #define SHARP_TIMEOUT_SHORT	1000
@@ -40,6 +40,13 @@ static const unsigned char test_tap[] = {
   0x0d, 0x00, 0x0a, 0x08, 0xde, 0x22, 0x53, 0x45, 0x50, 0x50, 0x22, 0x0d,
   0xff, 0xff, 0x94
 };
+
+static void __attribute__((noreturn)) usage(const char *prog, int err)
+{
+	printf("Usage: %s [-d device]\n", prog);
+	printf("Default device: " DEFAULT_DEVICE "\n");
+	exit(err);
+}
 
 static int sharp_read_byte(int fd, unsigned int timeout)
 {
@@ -236,12 +243,29 @@ out:
 	return err;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
-	int err, fd;
+	const char *devicename = DEFAULT_DEVICE;
+	int err, opt, fd;
 
-	printf("Hello, world!\n");
-	fd = sharp_open(DEVICE);
+	while ((opt = getopt(argc, argv, "d:h")) != -1) {
+		switch (opt) {
+		case 'd':
+			devicename = optarg;
+			break;
+
+		case 'h':
+			usage(argv[0], 0);
+
+		case '?':
+		default:
+			usage(argv[0], -1);
+			break;
+		}
+	}
+
+	printf("Using device at %s\n", devicename);
+	fd = sharp_open(devicename);
 	if (fd < 0) {
 		err = fd;
 		goto out;
