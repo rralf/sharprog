@@ -22,8 +22,7 @@ PROGRAMMER=usbasp
 PORT=usb
 
 # Qemu settings
-QEMU_MCU = atmega2560
-QEMU_MACHINE = mega2560
+QEMU_MACHINE = uno
 
 # Compiler settings
 AVR_PREFIX = avr-
@@ -35,7 +34,6 @@ AVR_OBJS := avr/main.o avr/uart.o avr/sharp.o avr/rs232.o
 ifdef DEBUG
 AVR_OBJS += avr/debug.o
 endif
-QEMU_AVR_OBJS = $(AVR_OBJS:.o=_qemu.o)
 
 HOST_OBJS := sharprog/main.o
 
@@ -59,13 +57,10 @@ else
 CFLAGS += -O2
 endif
 
-AVR_CFLAGS := $(CFLAGS) -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL
-TARGET_CFLAGS := $(AVR_CFLAGS) -mmcu=$(TARGET_MCU)
-QEMU_CFLAGS := $(AVR_CFLAGS) -mmcu=$(QEMU_MCU)
+AVR_CFLAGS := $(CFLAGS) -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL -mmcu=$(TARGET_MCU)
 
 TARGET_ELF = avr/$(TARGET).elf
 TARGET_HEX = avr/$(TARGET).hex
-QEMU_ELF = avr/$(TARGET)_qemu.elf
 
 all: $(HOST_TARGET) $(TARGET_HEX)
 
@@ -73,22 +68,16 @@ $(HOST_TARGET): $(HOST_OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 $(TARGET_ELF): $(AVR_OBJS)
-	$(AVR_CC) $(TARGET_CFLAGS) $(LDFLAGS) -o $@ $^
+	$(AVR_CC) $(AVR_CFLAGS) $(LDFLAGS) -o $@ $^
 
 %.hex: %.elf
 	$(AVR_SIZE) $^
 	$(AVR_OBJCOPY) -O ihex -R .eeprom $^ $@
 
 avr/%.o: avr/%.c
-	$(AVR_CC) -c $(TARGET_CFLAGS) -o $@ $^
+	$(AVR_CC) -c $(AVR_CFLAGS) -o $@ $^
 
-avr/%_qemu.o: avr/%.c
-	$(AVR_CC) -c $(QEMU_CFLAGS) -o $@ $^
-
-$(QEMU_ELF): $(QEMU_AVR_OBJS)
-	$(AVR_CC) $(QEMU_CFLAGS) $(LDFLAGS) -o $@ $^
-
-qemu: $(QEMU_ELF)
+qemu: $(TARGET_ELF)
 	$(QEMU) $(QEMU_FLAGS) --bios $^
 
 program: $(TARGET_HEX)
@@ -107,4 +96,3 @@ rfuse:
 clean:
 	rm -f $(HOST_OBJS) $(HOST_TARGET)
 	rm -f $(AVR_OBJS) $(TARGET_ELF) $(TARGET_HEX)
-	rm -f $(QEMU_AVR_OBJS) $(QEMU_ELF)
