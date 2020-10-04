@@ -46,7 +46,7 @@ QEMU_FLAGS = --machine $(QEMU_MACHINE) -serial stdio
 
 # Global {C,LD}FLAGS, for AVR and Host
 CFLAGS := -fdata-sections -ffunction-sections
-CFLAGS += -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations
+CFLAGS += -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations -Wtype-limits
 CFLAGS += -Iinclude/
 LDFLAGS := -Wl,--gc-sections
 
