@@ -48,7 +48,7 @@ QEMU_FLAGS = --machine $(QEMU_MACHINE) -serial stdio
 CFLAGS := -fdata-sections -ffunction-sections
 CFLAGS += -Wall -Wextra -Wstrict-prototypes -Wmissing-declarations -Wtype-limits
 CFLAGS += -Iinclude/
-LDFLAGS := -Wl,--gc-sections
+LDFLAGS := -Wl,--gc-sections -Wl,--print-gc-sections
 
 # Global debug/release specific CFLAGS
 ifdef DEBUG
