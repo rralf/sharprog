@@ -123,6 +123,7 @@ out:
 
 static void rcv_mode(void)
 {
+	sharp_rx_start();
 	rs232_send_fail();
 }
 

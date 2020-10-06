@@ -15,3 +15,5 @@ void sharp_init(void);
 int sharp_tx_start(unsigned short sync);
 void sharp_tx_stop(void);
 int sharp_tx_enqueue_byte(unsigned char byte);
+
+void sharp_rx_start(void);

@@ -23,6 +23,11 @@
 #define SHARP_XIN_PORT	PORTB
 #define SHARP_XIN_BIT	PB0
 
+#define SHARP_XOUT_DDR	DDRD
+#define SHARP_XOUT_PORT	PORTD
+#define SHARP_XOUT_PIN	PIND
+#define SHARP_XOUT_BIT	PD2
+
 /* must be a power of two! */
 #define SHARP_RING_BUFFER_SIZE	16
 
