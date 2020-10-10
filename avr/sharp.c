@@ -21,47 +21,18 @@
 #define TIMER1_TARGET_FREQUENCY_HZ	8000
 #define TIMER1_OCR1A			(F_OSC / TIMER1_TARGET_FREQUENCY_HZ)
 
-/*
- * Let's call it a SHARP byte. A SHARP byte consists of 8 bit of information,
- * split in two nibbles. A nibble is surrounded by one start bit (0) and f and
- * s stopbits (1). f is the number of stopbits for the least significant
- * nibble, l is the number of stopbits for the most significant nibble. Those
- * stopbits determine the mode (see struct mode_info), and the converted sharp
- * byte may vary in size. The bits field hold the number valid bits in data.
- */
-struct sharp_byte {
-	uint32_t data;
-	char bits; /* -1 indicates: waiting for next byte */
-};
-
-struct mode_info {
-	unsigned char first:4;
-	unsigned char second:4;
-} __attribute__((packed));
-
 static volatile struct {
-	struct sharp_byte buf[SHARP_RING_BUFFER_SIZE];
+	unsigned char buf[SHARP_RING_BUFFER_SIZE];
 	unsigned char head;
 	unsigned char tail;
 	bool stop;
 } rbuf;
 
-static const struct sharp_byte sharp_sync = {
-	.data = -1,
-	.bits = sizeof(sharp_sync.data) * 8,
-};
-
-/* stop bits of first and second nibble */
-static const struct mode_info mode_infos[] = {
-	{6, 6},
-	{5, 6},
-	{5, 5},
-	{4, 5},
-	{1, 6},
-	{1, 5},
-	{1, 4},
-	{1, 3},
-	{1, 2},
+const uint16_t pattern[] = {
+	0xcccc, /* 2 KHz square patten */
+	0xaaaa, /* 4 KHz square pattern */
+	0x0000, /* TBD: currently unused, while actually needed */
+	0x0001,
 };
 
 static inline void timer_stop(void)
@@ -74,43 +45,6 @@ static inline void timer_start(void)
 	TCNT1 = 0;
 	TCCR1B |= (1 << CS10);
 }
-
-const uint16_t pattern[] = {
-	0xcccc, /* 4 KHz square patten */
-	0xaaaa, /* 8 KHz square pattern */
-	0x0000, /* TBD: currently unused, while actually needed */
-	0x0001,
-};
-
-#ifdef DEBUG
-static void dump_sharp_byte(const struct sharp_byte *sharp_byte)
-{
-	unsigned char i;
-
-	for (i = 0; i < sharp_byte->bits ; i++)
-		uart_putc(sharp_byte->data & (1UL << i) ? '1' : '0');
-}
-
-static void dump_regular_byte(unsigned char mode, unsigned char byte,
-		      const struct sharp_byte *sharp_byte)
-{
-	static unsigned int ctr = 0;
-
-	pr_dbg("%04x: B: %02x, M: %u -- ", ctr++, byte, mode);
-	dump_sharp_byte(sharp_byte);
-	dbg_("");
-}
-
-static void dump_sync(void)
-{
-	dbg("SYNC        -- ");
-	dump_sharp_byte(&sharp_sync);
-	dbg_("");
-}
-#else
-#define dump_regular_byte(x, y, z)
-#define dump_sync()
-#endif
 
 static inline void xin_high(void)
 {
@@ -127,19 +61,19 @@ static inline unsigned char rbuf_next_pos(unsigned char pos)
 	return (pos + 1) % ARRAY_SIZE(rbuf.buf);
 }
 
-static int rbuf_enq(const struct sharp_byte *byte)
+static int rbuf_enq(unsigned char byte)
 {
 	if (rbuf.stop)
 		return -1;
 
 	while (rbuf.tail == rbuf.head);
 
-	rbuf.buf[rbuf.tail] = *byte;
+	rbuf.buf[rbuf.tail] = byte;
 	rbuf.tail = rbuf_next_pos(rbuf.tail);
 	return 0;
 }
 
-static int rbuf_deq(struct sharp_byte *dst)
+static int rbuf_deq(unsigned char *dst)
 {
 	unsigned char new_head = rbuf_next_pos(rbuf.head);
 
@@ -156,7 +90,7 @@ static int rbuf_deq(struct sharp_byte *dst)
 /* COMPA will be fired every 1/8000 second */
 ISR(TIMER1_COMPA_vect)
 {
-	static struct sharp_byte scurrent;
+	static uint16_t scurrent;
 	static uint16_t current; /* currently active pattern */
 	static unsigned char bit = 0;
 	static unsigned char byte_bit = 0;
@@ -165,17 +99,18 @@ ISR(TIMER1_COMPA_vect)
 	if (bit >= 16) {
 		bit = 0;
 		byte_bit++;
-		if (byte_bit >= scurrent.bits) {
+		if (byte_bit >= 10) {
 			byte_bit = 0;
-			err = rbuf_deq(&scurrent);
+			err = rbuf_deq((unsigned char*)&scurrent);
 			if (err) {
 				rbuf.stop = true;
 				timer_stop();
 				return;
 			}
+			scurrent |= BIT_MASK(9, 5); /* Add stopbits */
 		}
 
-		current = pattern[!!(scurrent.data & (1UL << byte_bit))];
+		current = pattern[!!(scurrent & (1UL << byte_bit))];
 	}
 
 	if (current & (1 << bit))
@@ -183,37 +118,6 @@ ISR(TIMER1_COMPA_vect)
 	else
 		xin_low();
 	bit++;
-}
-
-static inline uint16_t encode_nibble(unsigned char nibble, unsigned char sb)
-{
-	uint16_t ret;
-
-	/*
-	 * Shift the nibble one to the left: Bit 0 is the startbit with value 0
-	 */
-	ret = nibble << 1;
-	/* Add sb stopbits with value 1 at the end of the nibble */
-	ret |= BIT_MASK(5 + sb - 1, 5);
-
-	return ret;
-}
-
-static void convert(struct sharp_byte *dst, unsigned char mode,
-		    unsigned char c)
-{
-	const struct mode_info *m = &mode_infos[mode];
-	unsigned char n0 = (c >> 0) & 0xf;
-	unsigned char n1 = (c >> 4) & 0xf;
-
-	dst->bits = 1 + 4 + m->first + 1 + 4 + m->second;
-
-	/*
-	 * We reverse the bitorder, so we don't need to reverse the bitorder of
-	 * the nibbles.
-	 */
-	dst->data = encode_nibble(n1, m->first);
-	dst->data |= encode_nibble(n0, m->second) << (1 + 4 + m->first);
 }
 
 void sharp_stop_transmission(void)
@@ -224,8 +128,7 @@ void sharp_stop_transmission(void)
 static int enqueue_sync(unsigned short i)
 {
 	while (i--) {
-		dump_sync();
-		if (rbuf_enq(&sharp_sync))
+		if (rbuf_enq(0x1f))
 			return -1;
 	}
 	return 0;
@@ -239,20 +142,22 @@ int sharp_start_transmission(unsigned short sync)
 	rbuf.head = ARRAY_SIZE(rbuf.buf) - 1;
 	rbuf.tail = 0;
 
-	err = enqueue_sync(4);
+	err = enqueue_sync(ARRAY_SIZE(rbuf.buf) / 2);
 	if (err)
 		return -1;
 	timer_start();
 	return enqueue_sync(sync);
 }
 
-int enqueue_byte(unsigned char mode, unsigned char byte)
+int sharp_enqueue_byte(unsigned char byte)
 {
-	struct sharp_byte converted;
+	int err;
 
-	convert(&converted, mode, byte);
-	dump_regular_byte(mode, byte, &converted);
-	return rbuf_enq(&converted);
+	err = rbuf_enq(((byte >> 4) & 0xf) << 1);
+	if (err)
+		return err;
+
+	return rbuf_enq((byte & 0xf) << 1);
 }
 
 void sharp_init(void)

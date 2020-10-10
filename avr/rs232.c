@@ -110,7 +110,7 @@ static void tap_mode(void)
 		c = rs232_rcv_byte();
 		if (c < 0)
 			goto out;
-		c = enqueue_byte(5, c);
+		c = sharp_enqueue_byte(c);
 		if (c)
 			goto out;
 
