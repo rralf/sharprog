@@ -15,4 +15,4 @@ void sharp_init(void);
 int sharp_start_transmission(unsigned short sync);
 void sharp_stop_transmission(void);
 
-int enqueue_byte(unsigned char mode, unsigned char byte, bool checksum);
+int enqueue_byte(unsigned char mode, unsigned char byte);

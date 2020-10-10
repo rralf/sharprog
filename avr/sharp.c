@@ -39,12 +39,6 @@ struct mode_info {
 	unsigned char second:4;
 } __attribute__((packed));
 
-/* Information on the checksum */
-static struct {
-	unsigned int ctr;
-	uint16_t sum;
-} check;
-
 static volatile struct {
 	struct sharp_byte buf[SHARP_RING_BUFFER_SIZE];
 	unsigned char head;
@@ -191,20 +185,6 @@ ISR(TIMER1_COMPA_vect)
 	bit++;
 }
 
-static void update_checksum(unsigned char byte)
-{
-	uint16_t sum ;
-
-	sum = check.sum + ((byte & 0xF0) >> 4) ;
-	if (sum > 0xFF) {
-		++sum;
-		sum &= 0xFF ;
-	}
-	check.sum = (sum + (byte & 0x0F)) & 0xFF ;
-
-	check.ctr++;
-}
-
 static inline uint16_t encode_nibble(unsigned char nibble, unsigned char sb)
 {
 	uint16_t ret;
@@ -266,25 +246,13 @@ int sharp_start_transmission(unsigned short sync)
 	return enqueue_sync(sync);
 }
 
-int enqueue_byte(unsigned char mode, unsigned char byte, bool checksum)
+int enqueue_byte(unsigned char mode, unsigned char byte)
 {
 	struct sharp_byte converted;
-	int err = 0;
-
-	if (checksum)
-		update_checksum(byte);
 
 	convert(&converted, mode, byte);
 	dump_regular_byte(mode, byte, &converted);
-	if (rbuf_enq(&converted))
-		return -1;
-
-	if (checksum && check.ctr == 120) {
-		err = enqueue_byte(mode, check.sum, false);
-		check.ctr = 0;
-		check.sum = 0;
-	}
-	return err;
+	return rbuf_enq(&converted);
 }
 
 void sharp_init(void)
