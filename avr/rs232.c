@@ -78,27 +78,24 @@ static int rs232_rcv_byte(void)
 
 static void tap_mode(void)
 {
-	static struct {
-		uint16_t length;
-	} tap_ctx;
+	uint16_t length;
 	int c;
 
-	memset(&tap_ctx, 0, sizeof(tap_ctx));
-
 	/* Determine the length */
+	length = 0;
 	c = rs232_rcv_byte();
 	if (c < 0)
 		goto out;
 
-	tap_ctx.length |= (c & 0xff) << 0;
+	length |= (c & 0xff) << 0;
 	rs232_send_success();
 
 	c = rs232_rcv_byte();
 	if (c < 0)
 		goto out;
 
-	tap_ctx.length |= (c & 0xff) << 8;
-	pr_dbg_("TAP length: %04x", tap_ctx.length);
+	length |= (c & 0xff) << 8;
+	pr_dbg_("TAP length: %04x", length);
 
 	c = sharp_start_transmission(20);
 	if (c)
@@ -106,7 +103,7 @@ static void tap_mode(void)
 	rs232_send_success();
 	dbg_("Rdy!");
 
-	while (tap_ctx.length--) {
+	while (length--) {
 		c = rs232_rcv_byte();
 		if (c < 0)
 			goto out;
