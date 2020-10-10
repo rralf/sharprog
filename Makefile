@@ -53,8 +53,10 @@ LDFLAGS := -Wl,--gc-sections -Wl,--print-gc-sections
 # Global debug/release specific CFLAGS
 ifdef DEBUG
 CFLAGS += -DDEBUG -g -O0
+AVR_LDFLAGS := -Wl,-u,vfprintf -lprintf_flt $(LDFLAGS)
 else
 CFLAGS += -O2
+AVR_LDFLAGS := $(LDFLAGS)
 endif
 
 AVR_CFLAGS := $(CFLAGS) -DF_OSC=$(F_OSC) -DF_CPU=F_OSC -DUART_BAUD=$(UART_BAUD)UL -mmcu=$(TARGET_MCU)
@@ -68,7 +70,7 @@ $(HOST_TARGET): $(HOST_OBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 $(TARGET_ELF): $(AVR_OBJS)
-	$(AVR_CC) $(AVR_CFLAGS) $(LDFLAGS) -o $@ $^
+	$(AVR_CC) $(AVR_CFLAGS) $(AVR_LDFLAGS) -o $@ $^
 
 %.hex: %.elf
 	$(AVR_SIZE) $^
