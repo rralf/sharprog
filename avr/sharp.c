@@ -205,12 +205,6 @@ static void update_checksum(unsigned char byte)
 	check.ctr++;
 }
 
-void sharp_reset_checksum(void)
-{
-	check.sum = 0;
-	check.ctr = 0;
-}
-
 static inline uint16_t encode_nibble(unsigned char nibble, unsigned char sb)
 {
 	uint16_t ret;
@@ -291,37 +285,6 @@ int enqueue_byte(unsigned char mode, unsigned char byte, bool checksum)
 		check.sum = 0;
 	}
 	return err;
-}
-
-int enqueue_data(unsigned char mode, const unsigned char *data,
-		 unsigned int length, bool checksum)
-{
-	const unsigned char *r = data;
-	unsigned char c;
-	int err;
-
-	for (r = data; r < data + length; r++) {
-		c = pgm_read_byte(r);
-		err = enqueue_byte(mode, c, checksum);
-		if (err)
-			return -1;
-	}
-
-	return 0;
-}
-
-int sharp_enqueue_checksum(void)
-{
-	int err;
-
-	err = enqueue_byte(8, check.sum, false);
-	if (err)
-		return -1;
-
-#ifdef DEBUG
-	pr_dbg_("Enqueue checksum: %x", check.sum);
-#endif
-	return 0;
 }
 
 void sharp_init(void)
