@@ -30,7 +30,7 @@
 
 static void __attribute__((noreturn)) usage(const char *prog, int err)
 {
-	printf("Usage: %s [-d device] -t filename_tap\n", prog);
+	printf("Usage: %s [-d device] (-t filename_tap | -r filename_rcv)\n", prog);
 	printf("Default device: " DEFAULT_DEVICE "\n");
 	exit(err);
 }
@@ -269,12 +269,12 @@ out:
 
 int main(int argc, char **argv)
 {
-	const char *devicename = DEFAULT_DEVICE, *f_tap = NULL;
+	const char *devicename = DEFAULT_DEVICE, *f_tap = NULL, *f_rcv = NULL;
 	unsigned char *content = NULL;
 	int err, opt, fd_sharp;
 	size_t size;
 
-	while ((opt = getopt(argc, argv, "d:ht:")) != -1) {
+	while ((opt = getopt(argc, argv, "d:ht:r:")) != -1) {
 		switch (opt) {
 		case 'd':
 			devicename = optarg;
@@ -282,6 +282,10 @@ int main(int argc, char **argv)
 
 		case 't':
 			f_tap = optarg;
+			break;
+
+		case 'r':
+			f_rcv = optarg;
 			break;
 
 		case 'h':
@@ -295,8 +299,13 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (!f_tap)
+	if (!f_tap && !f_rcv)
 		usage(argv[0], -1);
+
+	if (f_tap && f_rcv) {
+		fprintf(stderr, "Can't handle both at once, RX & TX\n");
+		usage(argv[0], -1);
+	}
 
 	printf("Using device at %s\n", devicename);
 	fd_sharp = sharp_open(devicename);
@@ -314,14 +323,18 @@ int main(int argc, char **argv)
 	}
 	printf("  -> Found programmer\n");
 
-	err = read_file(f_tap, &content, &size);
-	if (err)
-		goto close_sharp;
-
-	err = sharp_send_tap(fd_sharp, content, size);
-	if (err) {
-		errno = -err;
-		perror("sharp_send_tap");
+	if (f_tap) {
+		err = read_file(f_tap, &content, &size);
+		if (err)
+			goto close_sharp;
+		err = sharp_send_tap(fd_sharp, content, size);
+		if (err) {
+			errno = -err;
+			perror("sharp_send_tap");
+			goto close_sharp;
+		}
+	} else if (f_rcv) {
+		err = -EINVAL;
 		goto close_sharp;
 	}
 
