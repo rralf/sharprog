@@ -273,6 +273,26 @@ out:
 	return err;
 }
 
+static int sharp_rcv_tap(int fd, const char *dst)
+{
+	int err, fd_file;
+
+	fd_file = creat(dst, 0660);
+	if (fd_file < 0) {
+		perror("creat");
+		return -errno;
+	}
+
+	err = sharp_send_byte_response(fd, RS232_CMD_RCV, RS232_SUCCESS);
+	if (err)
+		goto out;
+
+	err = -EINVAL;
+out:
+	close(fd_file);
+	return err;
+}
+
 int main(int argc, char **argv)
 {
 	const char *devicename = DEFAULT_DEVICE, *f_tap = NULL, *f_rcv = NULL;
@@ -333,8 +353,12 @@ int main(int argc, char **argv)
 			goto close_sharp;
 		}
 	} else if (f_rcv) {
-		err = -EINVAL;
-		goto close_sharp;
+		err = sharp_rcv_tap(fd_sharp, f_rcv);
+		if (err) {
+			errno = -err;
+			perror("sharp_rcv_tap");
+			goto close_sharp;
+		}
 	}
 
 	err = 0;
