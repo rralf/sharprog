@@ -40,15 +40,31 @@ static inline void timer_stop(void)
 	TCCR1B = 0;
 }
 
-static inline void timer_start(void)
+static inline void timer_reset(void)
 {
 	TCNT1 = 0;
+}
+
+static inline void timer_stop_reset(void)
+{
+	timer_stop();
+	timer_reset();
+}
+
+static inline void timer_on(void)
+{
+	TIFR1 |= (1 << TOV1) | (1 << OCF1A); /* clear pending interrupts */
 	TCCR1B |= (1 << CS10);
 }
 
 static inline void timer_int_off(void)
 {
 	TIMSK1 = 0;
+}
+
+static inline void timer_ovf_on(void)
+{
+	TIMSK1 |= (1 << TOIE1);
 }
 
 static inline void timer_oc1a_on(void)
@@ -166,7 +182,8 @@ int sharp_tx_start(unsigned short sync)
 	err = enqueue_sync(ARRAY_SIZE(rbuf.buf) / 2);
 	if (err)
 		return -1;
-	timer_start();
+	timer_reset();
+	timer_on();
 	return enqueue_sync(sync);
 }
 
