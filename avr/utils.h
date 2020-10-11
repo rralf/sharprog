@@ -14,3 +14,8 @@
         ((0xffffffff>> (32 - ((last) + 1 - (first)))) << (first))
 
 #define ARRAY_SIZE(array)  (sizeof(array) / sizeof((array)[0]))
+
+static inline void cpu_relax(void)
+{
+	asm volatile ("" : : : "memory");
+}
