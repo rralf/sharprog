@@ -37,13 +37,28 @@ const uint16_t pattern[] = {
 
 static inline void timer_stop(void)
 {
-	TCCR1B &= ~(1 << CS10);
+	TCCR1B = 0;
 }
 
 static inline void timer_start(void)
 {
 	TCNT1 = 0;
 	TCCR1B |= (1 << CS10);
+}
+
+static inline void timer_int_off(void)
+{
+	TIMSK1 = 0;
+}
+
+static inline void timer_oc1a_on(void)
+{
+	TIMSK1 |= (1 << OCIE1A);
+}
+
+static inline void timer_ctc_on(void)
+{
+	TCCR1B |= (1 << WGM12); /* CTC mode */
 }
 
 static inline void xin_high(void)
@@ -120,11 +135,6 @@ ISR(TIMER1_COMPA_vect)
 	bit++;
 }
 
-void sharp_stop_transmission(void)
-{
-	while (!rbuf.stop);
-}
-
 static int enqueue_sync(unsigned short i)
 {
 	while (i--) {
@@ -134,9 +144,20 @@ static int enqueue_sync(unsigned short i)
 	return 0;
 }
 
-int sharp_start_transmission(unsigned short sync)
+void sharp_tx_stop(void)
+{
+	while (!rbuf.stop);
+
+	timer_int_off();
+	timer_stop();
+}
+
+int sharp_tx_start(unsigned short sync)
 {
 	int err;
+
+	timer_oc1a_on();
+	timer_ctc_on();
 
 	rbuf.stop = false;
 	rbuf.head = ARRAY_SIZE(rbuf.buf) - 1;
@@ -149,7 +170,7 @@ int sharp_start_transmission(unsigned short sync)
 	return enqueue_sync(sync);
 }
 
-int sharp_enqueue_byte(unsigned char byte)
+int sharp_tx_enqueue_byte(unsigned char byte)
 {
 	int err;
 
@@ -165,9 +186,11 @@ void sharp_init(void)
 	SHARP_XIN_DDR |= (1 << SHARP_XIN_BIT);
 	xin_low();
 
+	timer_int_off();
+	TCCR1A = 0;
+	timer_stop();
 	TCCR1C = 0;
-	OCR1A = TIMER1_OCR1A;
 
-	TIMSK1 = (1 << OCIE1A);
-	TCCR1B = (1 << WGM12); /* CTC mode */
+	/* Output Compare 1A is only used for reading from the Sharp */
+	OCR1A = TIMER1_OCR1A;
 }

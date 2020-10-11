@@ -97,7 +97,7 @@ static void tap_mode(void)
 	length |= (c & 0xff) << 8;
 	pr_dbg_("TAP length: %04x", length);
 
-	c = sharp_start_transmission(20);
+	c = sharp_tx_start(20);
 	if (c)
 		goto out;
 	rs232_send_success();
@@ -107,13 +107,13 @@ static void tap_mode(void)
 		c = rs232_rcv_byte();
 		if (c < 0)
 			goto out;
-		c = sharp_enqueue_byte(c);
+		c = sharp_tx_enqueue_byte(c);
 		if (c)
 			goto out;
 
 		rs232_send_success();
 	}
-	sharp_stop_transmission();
+	sharp_tx_stop();
 	rs232_send_success();
 	return;
 

@@ -12,6 +12,6 @@
 
 void sharp_init(void);
 
-int sharp_start_transmission(unsigned short sync);
-void sharp_stop_transmission(void);
-int sharp_enqueue_byte(unsigned char byte);
+int sharp_tx_start(unsigned short sync);
+void sharp_tx_stop(void);
+int sharp_tx_enqueue_byte(unsigned char byte);
