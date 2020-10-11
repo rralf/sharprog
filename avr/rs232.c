@@ -132,13 +132,13 @@ void __attribute__((noreturn)) rs232_loop(void)
 
 		/* choose the mode */
 		switch (c) {
-		case 't':
+		case RS232_CMD_TAP:
 			dbg_("Entering tape mode");
 			rs232_send_success();
 			tap_mode();
 			break;
 
-		case 'p': /* ping */
+		case RS232_CMD_PING: /* ping */
 			uart_putc(RS232_CMD_PING);
 			break;
 
