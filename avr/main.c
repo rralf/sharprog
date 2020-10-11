@@ -16,7 +16,6 @@
 #include "debug.h"
 #include "uart.h"
 #include "led.h"
-#include "utils.h"
 #include "rs232.h"
 #include "sharp.h"
 
