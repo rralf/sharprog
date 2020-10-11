@@ -240,39 +240,43 @@ static int sharp_send_short(int fd, uint16_t s)
 	return err;
 }
 
-static int sharp_send_tap(int fd, const unsigned char *tap, size_t length)
+static int sharp_send_tap(int fd, const char *f_tap)
 {
+	size_t size;
+	unsigned char *content;
 	int err;
+
+	err = read_file(f_tap, &content, &size);
+	if (err)
+		return err;
 
 	err = sharp_send_byte_response(fd, RS232_CMD_TAP, RS232_SUCCESS);
 	if (err)
 		goto out;
 
-	err = sharp_send_short(fd, length);
+	err = sharp_send_short(fd, size);
 	if (err)
 		goto out;
 
-	err = sharp_send_array(fd, tap, length);
+	err = sharp_send_array(fd, content, size);
 	if (err)
 		goto out;
 	printf("TAP sent. wait to finish.\n");
 
 	err = sharp_read_byte(fd, SHARP_TIMEOUT_LONG);
-	if (err < 0) {
+	if (err < 0)
 		goto out;
-	}
 
 	err = err == RS232_SUCCESS ? 0 : -EINVAL;
 out:
+	free(content);
 	return err;
 }
 
 int main(int argc, char **argv)
 {
 	const char *devicename = DEFAULT_DEVICE, *f_tap = NULL, *f_rcv = NULL;
-	unsigned char *content = NULL;
 	int err, opt, fd_sharp;
-	size_t size;
 
 	while ((opt = getopt(argc, argv, "d:ht:r:")) != -1) {
 		switch (opt) {
@@ -309,10 +313,8 @@ int main(int argc, char **argv)
 
 	printf("Using device at %s\n", devicename);
 	fd_sharp = sharp_open(devicename);
-	if (fd_sharp < 0) {
-		err = fd_sharp;
-		goto out;
-	}
+	if (fd_sharp < 0)
+		return fd_sharp;
 
 	printf("Ping programmer...\n");
 	err = sharp_ping(fd_sharp);
@@ -324,10 +326,7 @@ int main(int argc, char **argv)
 	printf("  -> Found programmer\n");
 
 	if (f_tap) {
-		err = read_file(f_tap, &content, &size);
-		if (err)
-			goto close_sharp;
-		err = sharp_send_tap(fd_sharp, content, size);
+		err = sharp_send_tap(fd_sharp, f_tap);
 		if (err) {
 			errno = -err;
 			perror("sharp_send_tap");
@@ -341,8 +340,5 @@ int main(int argc, char **argv)
 	err = 0;
 close_sharp:
 	close(fd_sharp);
-out:
-	if (content)
-		free(content);
 	return err;
 }
