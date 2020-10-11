@@ -121,6 +121,11 @@ out:
 	rs232_send_fail();
 }
 
+static void rcv_mode(void)
+{
+	rs232_send_fail();
+}
+
 void __attribute__((noreturn)) rs232_loop(void)
 {
 	int c;
@@ -136,6 +141,12 @@ void __attribute__((noreturn)) rs232_loop(void)
 			dbg_("Entering tape mode");
 			rs232_send_success();
 			tap_mode();
+			break;
+
+		case RS232_CMD_RCV:
+			dbg_("Entering RCV mode");
+			rs232_send_success();
+			rcv_mode();
 			break;
 
 		case RS232_CMD_PING: /* ping */

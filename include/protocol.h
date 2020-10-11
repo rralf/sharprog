@@ -12,6 +12,7 @@
 
 #define RS232_CMD_PING	'p'
 #define RS232_CMD_TAP	't'
+#define RS232_CMD_RCV	'r'
 
 #define RS232_FAIL	'E'
 #define RS232_SUCCESS	'X'
